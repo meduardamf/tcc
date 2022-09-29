@@ -1,0 +1,559 @@
+### Um estudo sobre variáveis conexas ao letramento financeiro ###
+
+#Instalando as bibliotecas
+
+pacotes <-
+  c("plotly","dplyr","tidyverse","readxl","knitr","kableExtra","fastDummies",
+    "rgl","car","reshape2","jtools","lmtest","caret","pROC","ROCR","nnet",
+    "magick","cowplot", "ggrepel","sjPlot","FactoMineR","rgl","gridExtra",
+    "PerformanceAnalytics","reshape2","rayshader","psych","pracma","polynom",
+    "rqPen","ggrepel", "rpart", "rlang","ggplot2", "viridis")
+
+if(sum(as.numeric(!pacotes %in% installed.packages())) != 0){
+  instalador <- pacotes[!pacotes %in% installed.packages()]
+  for(i in 1:length(instalador)) {
+    install.packages(instalador, dependencies = T)
+    break()}
+  sapply(pacotes, require, character = T)
+} else {
+  sapply(pacotes, require, character = T)
+}
+
+#Importando a base de dados 
+Edicao_04_RaioX_Base_de_Dados <- read_excel("Edicao_04_RaioX - Base de Dados.xlsx")
+View(Edicao_04_RaioX_Base_de_Dados)
+
+#Selecionando os dados
+#As colunas referentes a investimentos (P1A), o bloco sobre conhecimentos 
+#financeiros (P20 à P22) e a questão  ref. a escolaridade do indivíduo (ESCOLA) 
+#foram selecionados. A renda familiar (RENDAF), o sexo (SEXO) e a idade (IDADE1) 
+#também 
+
+base <- Edicao_04_RaioX_Base_de_Dados[,c("P1A","P20","P21","P22",
+                                         "ESCOLA","RENDAF", "SEXO", "IDADE1")]
+base
+
+#Renomeando as variáveis
+names (base) <- c("investiu","r_pergunta1", "r_pergunta2", "r_pergunta3",
+                  "escolaridade","renda_familiar","sexo", "idade")
+
+#Analisando variável idade
+
+subset(table(base$idade),table(base$idade)== max(table(base$idade)))
+subset(table(base$idade),table(base$idade)== min(table(base$idade)))
+mean(base$idade)
+median(base$idade)
+
+ggplot(base) +
+  geom_bar(aes(x = idade), fill = "#DCE319FF") +
+  geom_text(aes(x = idade, label = ..count..), stat = "count", vjust = -0.25) +
+  geom_smooth(aes (x = idade, y = mean(idade)), method = "lm", linetype=2, 
+              se = FALSE, color = "#481567FF") +
+  labs(x = "Idade",
+       y = "Indivíduos") +
+  theme_classic()
+
+#Analisando variável sexo
+
+base_s <- base
+table(base_s$sexo)
+
+base_s$sexo <- Recode(base_s$sexo, '1 = "Masculino";
+2 = "Feminino"',
+                              as.factor=TRUE)
+
+x <- c(1836,1572)
+labels <- c('Masculino','Feminino')
+piepercent<- round(100 * x / sum(x), 1)
+pie(x, labels = piepercent, main="Sexo", col=viridis(length(x))) 
+legend("topright", c("Masculino", "Feminino"), cex = 1, fill = viridis(length(x)))
+
+#Analisando variável renda
+base_r <- base
+table(base_r$renda_familiar)
+
+base_r <- base_r %>% filter(base_r$renda_familiar != 97 & 
+                              base_r$renda_familiar != 99)
+
+base_r$renda_familiar <- Recode(base_r$renda_familiar, '1 = "ate 1 sm";
+2 = "de 1 a 2 sm";
+3 = "de 2 a 3 sm";
+4 = "de 3 a 5 sm";
+5 = "de 5 a 10 sm";
+6 = "de 10 a 20 sm";
+7 = "de 20 a 50 sm";
+8 = "de 50 sm"',
+                                as.factor=TRUE)
+
+base_r$renda_familiar <- factor(base_r$renda_familiar,
+                                levels = c("ate 1 sm",
+                                           "de 1 a 2 sm",
+                                           "de 2 a 3 sm",
+                                           "de 3 a 5 sm",
+                                           "de 5 a 10 sm",
+                                           "de 10 a 20 sm",
+                                           "de 20 a 50 sm",
+                                           "de 50 sm"))
+
+
+ggplot(base_r) + 
+  geom_bar(aes(x = renda_familiar), fill = c("#73D055FF", "#1F968BFF","#39568CFF",
+    "#440154FF","#404788FF","#33638DFF", "#238A8DFF", "#29AF7FFF"), color = "black") +
+  geom_text(aes(x = renda_familiar, label = ..count..), stat = "count", vjust = -0.25) + 
+  labs(x = "Renda Familiar",
+       y = "Indivíduos") + theme_classic()
+
+#Analisando a variável escolaridade
+
+base_e <- base
+table(base_e$escolaridade)
+
+base_e$escolaridade <- Recode(base_e$escolaridade, '1 = "Analfabeto";
+2 = "Primario";
+3 = "Ginasial";
+4 = "Colegial i.";
+5 = "Colegial c.";
+6 = "Superior i.";
+7 = "Superior c.";
+8 = "Pos-graduacao"',
+                              as.factor=TRUE)
+
+base_e$escolaridade <- factor(base_e$escolaridade,
+                              levels = c("Analfabeto",
+                                         "Primario",
+                                         "Ginasial",
+                                         "Colegial i.",
+                                         "Colegial c.",
+                                         "Superior i.",
+                                         "Superior c.",
+                                         "Pos-graduacao"))
+
+ggplot(base_e) + 
+  geom_bar(aes(x = escolaridade), fill = c("#73D055FF", "#1F968BFF","#39568CFF",
+                                           "#404788FF","#440154FF","#33638DFF", 
+                                           "#238A8DFF", "#29AF7FFF"), color = "black") +
+  geom_text(aes(x = escolaridade, label = ..count..), stat = "count", vjust = -0.25) + 
+  labs(x = "Escolaridade",
+       y = "Indivíduos") + theme_classic()
+
+#Verificando o acesso a internet pelos respondentes
+
+internet <- Edicao_04_RaioX_Base_de_Dados[,"INTERNET"]
+table(internet)
+internet$INTERNET <- Recode(internet$INTERNET, '1 = "Sempre"; 2 = "De vez em quando";
+                            3 = "Raramente"; 96 = "Nunca"')
+
+
+internet$INTERNET <- factor(internet$INTERNET,
+                            levels = c("Sempre",
+                                       "De vez em quando",
+                                       "Raramente",
+                                       "Nunca"))
+ggplot(internet) +
+  geom_bar(aes(x = INTERNET), fill = c("#73D055FF", "#1F968BFF", "#39568CFF", 
+                                       "#440154FF"), 
+           color = "black") +
+  geom_text(aes(x = INTERNET, label = ..count..), stat = "count", vjust = -0.5) + 
+  labs(x = "Acesso à Internet",
+       y = "Indivíduos") +
+  theme_classic()
+
+#Verificando a quantidade de respostas certas no bloco de conhecimentos financeiros 
+
+base <- base %>% mutate(r_p1 = case_when(
+  c(base$r_pergunta1) == 1 ~ 1, #certa
+  c(base$r_pergunta1) == 2 ~ 0, #errada
+  c(base$r_pergunta1) == 3 ~ 0, #errada
+  c(base$r_pergunta1) == 99 ~ 0, #não sabe
+  c(base$r_pergunta1) == 97 ~ 0)) #não respondeu
+table(base$r_p1)
+
+base <- base %>% mutate(r_p2 = case_when(
+  c(base$r_pergunta2) == 3 ~ 1, #certa
+  c(base$r_pergunta2) == 1 ~ 0, #errada
+  c(base$r_pergunta2) == 2 ~ 0, #errada
+  c(base$r_pergunta2) == 99 ~ 0, #não sabe
+  c(base$r_pergunta2) == 97 ~ 0)) #não respondeu
+table(base$r_p2)
+
+base <- base %>% mutate(r_p3 = case_when(
+  c(base$r_pergunta3) == 2 ~ 1, #certa
+  c(base$r_pergunta3) == 1 ~ 0, #errada
+  c(base$r_pergunta3) == 99 ~ 0, #não sabe
+  c(base$r_pergunta3) == 97 ~ 0)) #não respondeu
+table(base$r_p3)
+
+#Verificando a quantidade de acertos por respondente
+
+ranking <- base %>% select(r_p1,r_p2,r_p3) %>% mutate(qt_q_corretas = rowSums (.))
+table(ranking$qt_q_corretas) #1221 de 3408 respondentes acertaram as 3 perguntas
+base <- cbind(base,ranking)
+
+#Reestruturando a base
+base <- base[,c("investiu","qt_q_corretas","escolaridade","renda_familiar","sexo",
+                "idade")]
+base <- base %>% mutate (letramento = case_when (
+  c(base$qt_q_corretas) == 3 ~ 1, c(base$qt_q_corretas) != 3 ~ 0))
+table(base$letramento)
+
+base$qt_q_corretas <- factor(base$qt_q_corretas,
+                            levels = c(0,
+                                       1,
+                                       2,
+                                       3))
+#Plotando o gráfico
+ggplot(ranking) +
+  geom_bar(aes(x = qt_q_corretas), fill = c("#440154FF", "#39568CFF", "#1F968BFF", 
+                                            "#73D055FF"), color = "black") +
+  geom_text(aes(x = qt_q_corretas, label = ..count..), stat = "count", vjust = -0.25) + 
+  labs(x = "Quantidade de Questões Corretas",
+       y = "Indivíduos") +
+  theme_classic()
+
+#Criando uma nova base para verificar a quantidade de investidores e os tipos 
+#de investimentos realizados
+base_i <- Edicao_04_RaioX_Base_de_Dados[,c("P1A","P1B","P1C","P1D","P1E","P1F",
+                                           "P1G","P1H")]
+
+#Renomeando as variáveis
+names (base_i) <- c("investimento1","investimento2","investimento3",
+                    "investimento4","investimento5","investimento6","investimento7", 
+                    "investimento8")
+
+base_i <- base_i %>% mutate(investiu_s_n = case_when(
+  c(base_i$investimento1)== 996 ~ "996", #não investiu
+  c(base_i$investimento1)== 997 ~ "997", #não respondeu
+  c(base_i$investimento1)== 998 ~ "998", #outras respostas
+  c(base_i$investimento1)== 999 ~ "999", #não sabe/não lembra
+  c(base_i$investimento1)!= 996 & c(base_i$investimento1)!= 997 & 
+    c(base_i$investimento1)!= 998 & c(base_i$investimento1)!= 999 ~ "1",))
+table(base_i$investiu_s_n)
+
+#Excluindo as observações que não se lembram, não quiseram responder ou 
+#não sabem (total = 12)
+base_i <- base_i %>% filter(base_i$investiu_s_n == 1 | base_i$investiu_s_n == 996)
+table(base_i$investiu_s_n)
+
+#Criando a variável binária
+base_i <- base_i %>% mutate(investiu_s_n = case_when(
+  c(base_i$investimento1)== 996 ~ "Não", 
+  c(base_i$investimento1)!= 996 ~ "Sim"))
+table(base_i$investiu_s_n)
+
+#Categorizando o tipo de investimento realizado
+base_i <- base_i %>% mutate(tipo_invest1 = case_when(
+  c(base_i$investimento1) < 20 ~ "Bens Materiais",
+  c(base_i$investimento1) >= 20 & c(base_i$investimento1) < 209 ~ "Produtos Financeiros",
+  c(base_i$investimento1) == 996 ~ "Nenhum"))
+table(base_i$tipo_invest1)
+
+base_i <- base_i %>% mutate(tipo_invest2 = case_when(
+  c(base_i$investimento2) < 20 ~ "Bens Materiais",
+  c(base_i$investimento2) >= 20 & c(base_i$investimento2) < 209 ~ "Produtos Financeiros",
+  c(base_i$investimento2) == 996 ~ "Nenhum"))
+table(base_i$tipo_invest2)
+
+base_i <- base_i %>% mutate(tipo_invest3 = case_when(
+  c(base_i$investimento3) < 20 ~ "Bens Materiais",
+  c(base_i$investimento3) >= 20 & c(base_i$investimento3) < 209 ~ "Produtos Financeiros",
+  c(base_i$investimento3) == 996 ~ "Nenhum"))
+table(base_i$tipo_invest3)
+
+base_i <- base_i %>% mutate(tipo_invest4 = case_when(
+  c(base_i$investimento4) < 20 ~ "Bens Materiais",
+  c(base_i$investimento4) >= 20 & c(base_i$investimento4) < 209 ~ "Produtos Financeiros",
+  c(base_i$investimento4) == 996 ~ "Nenhum"))
+table(base_i$tipo_invest4)
+
+base_i <- base_i %>% mutate(tipo_invest5 = case_when(
+  c(base_i$investimento5) < 20 ~ "Bens Materiais",
+  c(base_i$investimento5) >= 20 & c(base_i$investimento5) < 209 ~ "Produtos Financeiros",
+  c(base_i$investimento5) == 996 ~ "Nenhum"))
+table(base_i$tipo_invest5)
+
+base_i <- base_i %>% mutate(tipo_invest6 = case_when(
+  c(base_i$investimento6) < 20 ~ "Bens Materiais",
+  c(base_i$investimento6) >= 20 & c(base_i$investimento6) < 209 ~ "Produtos Financeiros",
+  c(base_i$investimento6) == 996 ~ "Nenhum"))
+table(base_i$tipo_invest6)
+
+base_i <- base_i %>% mutate(tipo_invest7 = case_when(
+  c(base_i$investimento7) < 20 ~ "Bens Materiais",
+  c(base_i$investimento7) >= 20 & c(base_i$investimento7) < 209 ~ "Produtos Financeiros",
+  c(base_i$investimento7) == 996 ~ "Nenhum"))
+table(base_i$tipo_invest7)
+
+base_i <- base_i %>% mutate(tipo_invest8 = case_when(
+  c(base_i$investimento8) < 20 ~ "Bens Materiais",
+  c(base_i$investimento8) >= 20 & c(base_i$investimento8) < 209 ~ "Produtos Financeiros",
+  c(base_i$investimento8) == 996 ~ "Nenhum"))
+table(base_i$tipo_invest8)
+
+#Transformando o investimento em variável binária na base original
+
+table(base$investiu)
+
+base <- base %>% mutate(investiu_s_n = case_when(
+  c(base$investiu)== 996 ~ "996", #não investiu
+  c(base$investiu)== 997 ~ "997", #não respondeu
+  c(base$investiu)== 998 ~ "998", #outras respostas
+  c(base$investiu)== 999 ~ "999", #não sabe/não lembra
+  c(base$investiu)!= 996 & c(base$investiu)!= 997 & 
+    c(base$investiu)!= 998 & c(base$investiu)!= 999 ~ "1",))
+table(base$investiu_s_n)
+
+#Excluindo as observações que não se lembram, não quiseram responder ou 
+#não sabem (total = 12)
+
+base <- base %>% filter(base$investiu_s_n == 1 | base$investiu_s_n == 996)
+table(base$investiu_s_n)
+
+#Criando a variável binária
+
+base <- base %>% mutate(investiu_s_n = case_when(
+  c(base_i$investimento1)== 996 ~ 0, 
+  c(base_i$investimento1)!= 996 ~ 1))
+table(base$investiu_s_n)
+
+#Criando a base de dados para construção do modelo
+
+base_m <- base[,c("letramento","escolaridade","renda_familiar","investiu_s_n",
+                  "idade","sexo")]
+
+#Excluindo as observações que não responderam a pergunta sobre 
+#renda familiar (total = 233)
+
+table(base_m$renda_familiar) #3396 obs.
+base_m <- base_m %>% filter(base_m$renda_familiar != 97 & 
+                              base_m$renda_familiar != 99)
+table(base_m$renda_familiar) #3163 obs.
+
+#Transformando as variáveis da base de dados
+
+str(base_m)
+
+base_m$escolaridade <- Recode(base_m$escolaridade, '1 = "Analfabeto";
+2 = "Primario";
+3 = "Ginasial";
+4 = "Colegial incompleto";
+5 = "Colegial completo";
+6 = "Superior incompleto";
+7 = "Superior completo";
+8 = "Pos-graduacao"',
+                              as.factor=TRUE)
+
+base_m$escolaridade <- factor(base_m$escolaridade,
+                              levels = c("Analfabeto",
+                                         "Primario",
+                                         "Ginasial",
+                                         "Colegial incompleto",
+                                         "Colegial completo",
+                                         "Superior incompleto",
+                                         "Superior completo",
+                                         "Pos-graduacao"))
+
+base_m$renda_familiar <- Recode(base_m$renda_familiar, '1 = "ate 1 sm";
+2 = "de 1 a 2 sm";
+3 = "de 2 a 3 sm";
+4 = "de 3 a 5 sm";
+5 = "de 5 a 10 sm";
+6 = "de 10 a 20 sm";
+7 = "de 20 a 50 sm";
+8 = "de 50 sm"',
+                               as.factor=TRUE)
+
+base_m$renda_familiar <- factor(base_m$renda_familiar,
+                                levels = c("ate 1 sm",
+                                           "de 1 a 2 sm",
+                                           "de 2 a 3 sm",
+                                           "de 3 a 5 sm",
+                                           "de 5 a 10 sm",
+                                           "de 10 a 20 sm",
+                                           "de 20 a 50 sm",
+                                           "de 50 sm"))
+
+
+base_m$sexo <- Recode(base_m$sexo, '1 = 0; 2 = 1')
+#0 = masculino, 1 = feminino
+
+#Tabela de contingência: testando as associações 
+
+#a) Entre as variáveis letramento e investimento
+
+tab <-  table(base_m$letramento,
+              base_m$investiu_s_n)
+tab
+
+sjt.xtab(var.row = base_m$letramento,
+         var.col = base_m$investiu_s_n,
+         var.labels = c ("Letramento Financeiro", "Investimento em 2020"),
+         show.exp = TRUE,
+         show.cell.prc = TRUE,
+         show.legend = TRUE)
+
+#1 grau de liberdade a 5%: 3,841
+#Hipótese alternativa: há associação 
+
+#b) Entre as variáveis letramento e escolaridade
+
+tab1 <-  table(base_m$letramento,
+               base_m$escolaridade)
+tab1
+
+sjt.xtab(var.row = base_m$letramento,
+         var.col = base_m$escolaridade,
+         var.labels = c ("Letramento Financeiro", "Escolaridade"),
+         show.cell.prc = TRUE,
+         show.legend = TRUE,
+         show.exp = TRUE)
+
+#7 graus de liberdade a 5%: 14,067
+#Hipótese alternativa: há associação 
+#Inversão começa na categoria superior incompleto
+
+#c) Entre as variáveis letramento e renda familiar
+
+tab2 <-  table(base_m$letramento,
+               base_m$renda_familiar)
+
+tab2
+
+sjt.xtab(var.row = base_m$letramento,
+         var.col = base_m$renda_familiar,
+         var.labels = c ("Letramento Financeiro", "Renda Familiar"),
+         show.cell.prc = TRUE,
+         show.legend = TRUE,
+         show.exp = TRUE)
+
+#7 graus de liberdade a 5%: 14,067
+#Hipótese alternativa: há associação 
+#Inversão começa na categoria "de 5 a 10 salários mínimos"
+
+#d) Entre as variáveis letramento e idade
+
+tab3 <-  table(base_m$letramento,
+               base_m$idade)
+
+tab3
+
+sjt.xtab(var.row = base_m$letramento,
+         var.col = base_m$idade,
+         var.labels = c ("Letramento Financeiro", "Idade"),
+         show.cell.prc = TRUE,
+         show.legend = TRUE,
+         show.exp = TRUE)
+
+#66 graus de liberdade a 5%: distante da região de não rejeição
+#Probabilidade de erro tende a zero
+
+#e) Entre as variáveis letramento e sexo
+
+tab4 <-  table(base_m$letramento,
+               base_m$sexo)
+
+tab4
+
+sjt.xtab(var.row = base_m$letramento,
+         var.col = base_m$sexo,
+         var.labels = c ("Letramento Financeiro", "Sexo"),
+         show.cell.prc = TRUE,
+         show.legend = TRUE,
+         show.exp = TRUE)
+
+#1 grau de liberdade a 5%: 3,841
+#Hipótese alternativa: há associação 
+
+#Modelo Logístico Binário 
+
+#Construção do Modelo
+
+modelo1 <- glm(formula = letramento ~ 
+                 escolaridade + renda_familiar + investiu_s_n + sexo + idade,
+               data = base_m,
+               family = "binomial")
+summary(modelo1)
+logLik(modelo1)
+summ(modelo1, confint = T, digits = 3, ci.width = .95)
+export_summs(modelo1, scale = F, digits = 6)
+
+#Procedimento Stepwise
+
+#Dummizando as variáveis: estabelece como categorias de referência as 
+#categorias de label 1 de cada variável original
+
+base_dummy <- dummy_columns(.data = base_m,
+                                    select_columns = c("escolaridade",
+                                                       "renda_familiar"),
+                                    remove_selected_columns = T,
+                                    remove_first_dummy = T)
+
+#Visualizando a base de dados 
+
+base_dummy %>%
+  kable() %>%
+  kable_styling(bootstrap_options = "striped",
+                full_width = F,
+                font_size = 16)
+
+#Rodando o modelo
+
+modelo_dummy <- glm(formula = letramento ~ .,
+                                 data = base_dummy,
+                                 family = "binomial")
+
+summary(modelo_dummy)
+logLik(modelo_dummy)
+
+stepwise <- step(object = modelo_dummy,
+                                k = qchisq(p = 0.05, df = 1, lower.tail = FALSE))
+
+summary(stepwise)
+
+#Adicionando valores previstos na base de dados
+
+#Modelo Dummy:
+base_dummy$phat <- modelo_dummy$fitted.values
+
+#Matriz de Confusão e curva ROC do Modelo Dummy
+
+confusionMatrix(table(predict(modelo_dummy, type = "response") >= 0.6,
+                      base_dummy$letramento == 1)[2:1, 2:1])
+
+data.frame(Sensitividade = confusionMatrix(table(predict(modelo_dummy,
+                                                         type = "response")
+                                                 >= 0.6,
+                                                 base_dummy$letramento == 1)[2:1,
+                                                                         2:1])[["byClass"]][["Sensitivity"]],
+           Especificidade = confusionMatrix(table(predict(modelo_dummy,
+                                                          type =
+                                                            "response") >= 0.6,
+                                                  base_dummy$letramento == 1)[2:1,
+                                                                          2:1])[["byClass"]][["Specificity"]],
+           Acurácia = confusionMatrix(table(predict(modelo_dummy,
+                                                    type = "response") >=
+                                              0.6,
+                                            base_dummy$letramento== 1)[2:1,
+                                                                   2:1])[["overall"]][["Accuracy"]]) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = "striped", position = "center",
+                full_width = F,
+                font_size = 27)
+
+
+ROC <- roc(response = base_dummy$letramento,
+           predictor = modelo_dummy$fitted.values)
+ggplotly(
+  ggroc(ROC, color = "#440154FF", size = 1) +
+    geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1),
+                 color="grey40",
+                 size = 0.2) +labs(x = "Especificidade",
+                                   y = "Sensitividade",
+                                   title = paste("Área abaixo da curva:",
+                                                 round(ROC$auc, 3),
+                                                 "|",
+                                                 "Coeficiente de Gini",
+                                                 round((ROC$auc[1] - 0.6) / 0.6, 3))) +
+    theme_bw()
+)
+
+#Boa Especificidade
