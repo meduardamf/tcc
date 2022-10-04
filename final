@@ -1,4 +1,5 @@
-### Um estudo sobre variáveis conexas ao letramento financeiro ###
+# Construção do Modelo Logístico Binário para a identificação de variáveis 
+#conexas ao letramento financeiro
 
 #Instalando as bibliotecas
 
@@ -210,6 +211,52 @@ ggplot(ranking) +
        y = "Indivíduos") +
   theme_classic()
 
+#Analisando os motivos dos indivíduos que não investiram em 2020
+
+base_ni <- Edicao_04_RaioX_Base_de_Dados[,c("P24A","P24B","P24C","P24D",
+                                            "P24E","P24F",
+                                           "P24G","P24H")]
+
+base_ni <- base_ni %>% mutate(P24A = case_when(
+  c(base_ni$P24A) < 20 ~ "Condições Financeiras",
+  c(base_ni$P24A) >= 20 & c(base_ni$P24A) < 40 ~ "Insegurança",
+  c(base_ni$P24A) >= 40 & c(base_ni$P24A) < 59 ~ "Interesse",
+  c(base_ni$P24A) >= 60 & c(base_ni$P24A) < 63 ~ "Pandemia",
+  c(base_ni$P24A) >= 64 ~ "Outros"))
+table(base_ni$P24A)
+
+base_ni <- base_ni %>% mutate(P24B = case_when(
+  c(base_ni$P24B) < 20 ~ "Condições Financeiras",
+  c(base_ni$P24B) >= 20 & c(base_ni$P24B) < 40 ~ "Insegurança",
+  c(base_ni$P24B) >= 40 & c(base_ni$P24B) < 59 ~ "Interesse",
+  c(base_ni$P24B) >= 60 & c(base_ni$P24B) < 63 ~ "Pandemia",
+  c(base_ni$P24B) >= 64 ~ "Outros"))
+table(base_ni$P24B)
+
+base_ni <- base_ni %>% mutate(P24C = case_when(
+  c(base_ni$P24C) < 20 ~ "Condições Financeiras",
+  c(base_ni$P24C) >= 20 & c(base_ni$P24C) < 40 ~ "Insegurança",
+  c(base_ni$P24C) >= 40 & c(base_ni$P24C) < 59 ~ "Interesse",
+  c(base_ni$P24C) >= 60 & c(base_ni$P24C) < 63 ~ "Pandemia",
+  c(base_ni$P24C) >= 64 ~ "Outros"))
+table(base_ni$P24C)
+
+base_ni <- base_ni %>% mutate(P24D = case_when(
+  c(base_ni$P24D) < 20 ~ "Condições Financeiras",
+  c(base_ni$P24D) >= 20 & c(base_ni$P24D) < 40 ~ "Insegurança",
+  c(base_ni$P24D) >= 40 & c(base_ni$P24D) < 59 ~ "Interesse",
+  c(base_ni$P24D) >= 60 & c(base_ni$P24D) < 63 ~ "Pandemia",
+  c(base_ni$P24D) >= 64 ~ "Outros"))
+table(base_ni$P24D)
+
+base_ni <- base_ni %>% mutate(P24E = case_when(
+  c(base_ni$P24E) < 20 ~ "Condições Financeiras",
+  c(base_ni$P24E) >= 20 & c(base_ni$P24E) < 40 ~ "Insegurança",
+  c(base_ni$P24E) >= 40 & c(base_ni$P24E) < 59 ~ "Interesse",
+  c(base_ni$P24E) >= 60 & c(base_ni$P24E) < 63 ~ "Pandemia",
+  c(base_ni$P24E) >= 64 ~ "Outros"))
+table(base_ni$P24E)
+
 #Criando uma nova base para verificar a quantidade de investidores e os tipos 
 #de investimentos realizados
 base_i <- Edicao_04_RaioX_Base_de_Dados[,c("P1A","P1B","P1C","P1D","P1E","P1F",
@@ -373,8 +420,14 @@ base_m$renda_familiar <- factor(base_m$renda_familiar,
                                            "de 50 sm"))
 
 
-base_m$sexo <- Recode(base_m$sexo, '1 = 0; 2 = 1')
+base_m$sexo <- Recode(base_m$sexo, '1 = 0; 2 = 1', as.factor=TRUE)
 #0 = masculino, 1 = feminino
+
+base_m$letramento <- as.factor(base_m$letramento)
+
+base_m$investiu_s_n <- as.factor(base_m$investiu_s_n)
+
+summary(base_m)
 
 #Tabela de contingência: testando as associações 
 
@@ -466,6 +519,7 @@ sjt.xtab(var.row = base_m$letramento,
 #Modelo Logístico Binário 
 
 #Construção do Modelo
+summary(base_m)
 
 modelo1 <- glm(formula = letramento ~ 
                  escolaridade + renda_familiar + investiu_s_n + sexo + idade,
@@ -502,16 +556,21 @@ modelo_dummy <- glm(formula = letramento ~ .,
                                  family = "binomial")
 
 summary(modelo_dummy)
+summ(modelo_dummy, confint = T, digits = 3, ci.width = .95)
 logLik(modelo_dummy)
 
 stepwise <- step(object = modelo_dummy,
                                 k = qchisq(p = 0.05, df = 1, lower.tail = FALSE))
 
 summary(stepwise)
+logLik(stepwise)
+
+lrtest(modelo_dummy, stepwise)
 
 #Adicionando valores previstos na base de dados
 
 #Modelo Dummy:
+
 base_dummy$phat <- modelo_dummy$fitted.values
 
 #Matriz de Confusão e curva ROC do Modelo Dummy
@@ -555,5 +614,7 @@ ggplotly(
                                                  round((ROC$auc[1] - 0.6) / 0.6, 3))) +
     theme_bw()
 )
+
+ROC
 
 #Boa Especificidade
